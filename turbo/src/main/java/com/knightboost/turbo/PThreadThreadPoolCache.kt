@@ -48,13 +48,13 @@ object PThreadThreadPoolCache {
 
     @Synchronized
     fun getHasFreePoolList(
-        queueClass: String?,
+        queueType: String?,
         onlyFirst: Boolean,
         needSort: Boolean
     ): MutableList<PThreadPoolExecutor> {
         PthreadUtil.log(
             "PThreadThreadPoolCache",
-            "getHasFreePoolList queueClass ${queueClass}, onlyFirst= ${onlyFirst}, needSort=${needSort}"
+            "getHasFreePoolList queueType ${queueType}, onlyFirst= ${onlyFirst}, needSort=${needSort}"
         )
 
         val arrayList = mutableListOf<PThreadPoolExecutor>()
@@ -69,7 +69,11 @@ object PThreadThreadPoolCache {
 
                 val isPriorityBlockingQueue = queue is PriorityBlockingQueue
 
-                if (!pThreadPoolExecutor.isShutdown && !pThreadPoolExecutor.isTerminated && !pThreadPoolExecutor.isTerminated && pThreadPoolExecutor.isWorkQueueEmpty() && (queueClass == null || !isPriorityBlockingQueue)) {
+                if (!pThreadPoolExecutor.isShutdown
+                    && !pThreadPoolExecutor.isTerminated
+                    && !pThreadPoolExecutor.isTerminating
+                    && pThreadPoolExecutor.isWorkQueueEmpty()
+                    && (queueType == null || !isPriorityBlockingQueue)) {
                     arrayList.add(pThreadPoolExecutor)
                 }
 
@@ -100,8 +104,8 @@ object PThreadThreadPoolCache {
     }
 
     @Synchronized
-    fun findFreeExecutor(str: String, str2: String): PThreadPoolExecutor? {
-        val hasFreePoolList = getHasFreePoolList(str2, onlyFirst = false, needSort = false)
+    fun findFreeExecutorWhenOom(str: String, queueType: String): PThreadPoolExecutor? {
+        val hasFreePoolList = getHasFreePoolList(queueType, onlyFirst = false, needSort = false)
         //TODO 这是做什么？
         onTriggerOom(hasFreePoolList, str)
         val firstPThreadPoolExecutor = hasFreePoolList.getOrNull(0)
@@ -165,7 +169,6 @@ object PThreadThreadPoolCache {
                 val poolList = getHasFreePoolList(null, onlyFirst = false, needSort = true)
                 for (pThreadPoolExecutor in poolList) {
                     val sb = StringBuilder()
-
                     val threadFactory = pThreadPoolExecutor.threadFactory
                     if (threadFactory is DefaultThreadFactory){
                         name = threadFactory.namePrefix
@@ -190,8 +193,8 @@ object PThreadThreadPoolCache {
         }
     }
 
-    fun trimFirstEmptyPool(name: String) {
-        val freePoolList = getHasFreePoolList(name, onlyFirst = true, needSort = true)
+    fun trimFirstEmptyPool(queueType: String) {
+        val freePoolList = getHasFreePoolList(queueType, onlyFirst = true, needSort = true)
         if (freePoolList.isNullOrEmpty()){
             return
         }
@@ -203,14 +206,11 @@ object PThreadThreadPoolCache {
         trimAllThreadPool()
     }
 
-
-
     fun trimThreadPool(pThreadPoolExecutor: PThreadPoolExecutor){
         val keepAliveTime = pThreadPoolExecutor.getKeepAliveTime(TimeUnit.NANOSECONDS)
         val allowsCoreThreadTimeOut = pThreadPoolExecutor.allowsCoreThreadTimeOut()
         pThreadPoolExecutor.setKeepAliveTime(1L,TimeUnit.NANOSECONDS)
 
-        //TODO 解释 为什么 先 false 再true
         if (allowsCoreThreadTimeOut){
             allowCoreThreadTimeOut(pThreadPoolExecutor,false)
         }

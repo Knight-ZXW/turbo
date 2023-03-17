@@ -50,9 +50,6 @@ open class PthreadThread : Thread {
             }
             proxy?.start()
         } catch (unused: OutOfMemoryError) {
-            // Q:为什么这里可以进行拦截？A:在创建目标线程的底层实现中，虽然是新的线程创建过程中出现OOM，
-            // 但系统会主动抛出OOM到当前线程
-
             //优化线程
             PThreadThreadPoolCache.trimFirstEmptyPool("PthreadThread")
             //尝试重新进行调度

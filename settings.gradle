@@ -3,6 +3,7 @@ pluginManagement {
         gradlePluginPortal()
         google()
         mavenCentral()
+        maven { setUrl("https://artifact.bytedance.com/repository/byteX/") }
     }
 }
 dependencyResolutionManagement {
@@ -10,8 +11,10 @@ dependencyResolutionManagement {
     repositories {
         google()
         mavenCentral()
+        maven { setUrl("https://artifact.bytedance.com/repository/byteX/") }
     }
 }
 rootProject.name = "turbo"
 include ':app'
 include ':turbo'
+include ':turbo-plugin'

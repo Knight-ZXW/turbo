@@ -62,6 +62,7 @@ public class PthreadHandlerThread extends HandlerThread {
 
     @Override
     public synchronized void start() {
+        ReentrantLock lock = this.lock;
         try {
             if (SuperThreadPoolManager.INSTANCE.isEnable(4)){
                 if (this.proxy == null){
@@ -72,12 +73,17 @@ public class PthreadHandlerThread extends HandlerThread {
                 super.start();
             }
             this.isStartSuccess = true;
-            this.lock.lock();
+            lock.lock();
         }catch (OutOfMemoryError unused){
-            PThreadThreadPoolCache.INSTANCE.
+            PThreadThreadPoolCache.INSTANCE.trimFirstEmptyPool("pthreadHandlerThread");
         }
 
-
-        super.start();
+        try {
+            this.condition.signalAll();
+            lock.unlock();
+        }catch (Throwable e){
+            lock.unlock();
+            throw  e;
+        }
     }
 }

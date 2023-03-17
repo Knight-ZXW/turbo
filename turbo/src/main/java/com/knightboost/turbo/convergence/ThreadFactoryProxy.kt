@@ -2,7 +2,8 @@ package com.knightboost.turbo.convergence
 
 import java.util.concurrent.ThreadFactory
 
-open class ThreadFactoryProxy(val delegate: ThreadFactory, val enableType: Int) : ThreadFactory {
+open class ThreadFactoryProxy(val delegate: ThreadFactory,
+    val enableType: Int) : ThreadFactory {
 
     companion object {
 
@@ -22,13 +23,12 @@ open class ThreadFactoryProxy(val delegate: ThreadFactory, val enableType: Int) 
     }
 
     open fun isProxyEnable(): Boolean {
-        return SuperThreadPoolManager.isEnable(this.enableType)
-
+        return SuperThreadPoolManager.threadFactoryProxyEnable
     }
 
     override fun newThread(r: Runnable?): Thread {
         val newThread = delegate.newThread(r)
-        if (SuperThreadPoolManager.isEnable(this.enableType)) {
+        if (SuperThreadPoolManager.threadFactoryProxyEnable) {
             return ThreadProxy(newThread)
         } else {
             return newThread

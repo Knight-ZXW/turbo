@@ -55,7 +55,7 @@ public class TurboCoreThreadPool extends ThreadPoolExecutor {
 
 
 
-    public final boolean execute(Runnable runnable,TurboThreadPoolProxy turboThreadPoolProxy,boolean z){
+    public final boolean execute(Runnable runnable,TurboThreadPoolProxy turboThreadPoolProxy,boolean core){
         execute(runnable);
         return true;
     }

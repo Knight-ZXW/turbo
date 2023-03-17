@@ -14,7 +14,8 @@ abstract class TurboThreadMonitor {
 
     open fun onThreadPoolCallExecute(runnable: Runnable, i: Int) {}
 
-    open fun onThreadPoolCreate(i: Int, i2: Int, j: Long, timeUnit: TimeUnit, blockingQueue: BlockingQueue<Runnable>,
+    open fun onThreadPoolCreate(corePoolSIze: Int, maximumPoolSize: Int, keepAliveTime: Long,
+        timeUnit: TimeUnit, blockingQueue: BlockingQueue<Runnable>,
         threadFactory: ThreadFactory, rejectedExecutionHandler: RejectedExecutionHandler) {}
 
     open fun onThreadStart(thread: Thread) {}

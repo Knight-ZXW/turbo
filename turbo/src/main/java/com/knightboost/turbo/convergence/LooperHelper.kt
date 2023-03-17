@@ -2,7 +2,7 @@ package com.knightboost.turbo.convergence
 
 import android.os.Looper
 
-class LooperHelper {
+object LooperHelper {
 
 
     val looperLocal by lazy {

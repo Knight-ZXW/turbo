@@ -69,9 +69,11 @@ public final class BlockingQueueProxy<E>(val delegate: BlockingQueue<E>) : Block
     }
 
     override fun poll(timeout: Long, unit: TimeUnit?): E? {
-        //TODO
-        // return !SuperThreadPoolManager.INSTANCE.getEnableBlockFetchTask() ? poll() : this.delegate.poll(j, timeUnit);
-        return delegate.poll(timeout,unit)
+        if (!SuperThreadPoolManager.enableBlockFetchStack) {
+            return poll()
+        }else{
+            return this.delegate.poll(timeout,unit)
+        }
     }
 
     override fun poll(): E? {

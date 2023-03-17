@@ -2,8 +2,7 @@ package com.knightboost.turbo
 
 import android.os.Handler
 import android.os.HandlerThread
-import com.knightboost.turbo.core.TurboCoreThreadPool
-import com.knightboost.turbo.core.TurboNamedThreadFactory
+import com.knightboost.turbo.core.*
 import java.lang.ref.SoftReference
 import java.util.Collections
 import java.util.concurrent.LinkedBlockingQueue
@@ -27,6 +26,11 @@ object Turbo {
     var isDebug = false
 
     var maxThread = 150
+        set(value) {
+            field =value
+            coreThreadPool.corePoolSize = value
+            coreThreadPool.maximumPoolSize =value
+        }
 
     var keepAliveTime = 30L
         set(value) {
@@ -53,7 +57,7 @@ object Turbo {
         return@lazy Handler(mSchedulerThread.looper)
     }
 
-    val monitor by lazy {
+    val monitor: TurboThreadMonitor by lazy {
         return@lazy MonitorImpl()
     }
 

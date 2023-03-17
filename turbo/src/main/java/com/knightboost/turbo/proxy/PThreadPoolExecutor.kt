@@ -3,109 +3,77 @@ package com.knightboost.turbo.proxy
 import android.os.Build
 import com.knightboost.turbo.*
 import com.knightboost.turbo.PthreadUtil.isEnableHook
+import com.knightboost.turbo.convergence.SuperThreadPoolManager
 import com.knightboost.turbo.convergence.ThreadFactoryProxy
 import java.util.concurrent.*
 
 open class PThreadPoolExecutor : DefaultThreadPoolProxy {
 
-    constructor(corePoolSize: Int, maximumPoolSize: Int, keepAliveTime: Long, unit: TimeUnit, workQueue: BlockingQueue<Runnable>) : super(
-        corePoolSize,
-        maximumPoolSize,
-        keepAliveTime,
-        unit,
-        workQueue
+    constructor(
+        corePoolSize: Int, maximumPoolSize: Int, keepAliveTime: Long, unit: TimeUnit, workQueue: BlockingQueue<Runnable>
+    ) : super(
+        corePoolSize, maximumPoolSize, keepAliveTime, unit, workQueue
     ) {
+        settingCoreThreadTimeOut()
+    }
+
+    constructor(corePoolSize: Int, maximumPoolSize: Int, keepAliveTime: Long, unit: TimeUnit, workQueue: BlockingQueue<Runnable>, threadFactory: ThreadFactory) : super(
+        corePoolSize, maximumPoolSize, keepAliveTime, unit, workQueue, threadFactory
+    ) {
+        settingCoreThreadTimeOut()
+
+    }
+
+    constructor(corePoolSize: Int, maximumPoolSize: Int, keepAliveTime: Long, unit: TimeUnit, workQueue: BlockingQueue<Runnable>, handler: RejectedExecutionHandler) : super(
+        corePoolSize, maximumPoolSize, keepAliveTime, unit, workQueue, handler
+    ) {
+        settingCoreThreadTimeOut()
+    }
+
+    constructor(
+        corePoolSize: Int, maximumPoolSize: Int, keepAliveTime: Long, unit: TimeUnit, workQueue: BlockingQueue<Runnable>, threadFactory: ThreadFactory, handler: RejectedExecutionHandler
+    ) : super(
+        corePoolSize, maximumPoolSize, keepAliveTime, unit, workQueue, threadFactory, handler
+    ) {
+        settingCoreThreadTimeOut()
+    }
+
+    private fun settingCoreThreadTimeOut() {
         if (isEnableHook()) {
-            if (!allowsCoreThreadTimeOut()) {
+            if (!allowsCoreThreadTimeOut()) { //强制允许 coreThread TimeOut
                 setKeepAliveTime(30L.coerceAtLeast(getKeepAliveTime(TimeUnit.SECONDS)), TimeUnit.SECONDS)
                 try {
-                    if (Build.VERSION.SDK_INT <= 23) {
-                        try {
-                            allowCoreThreadTimeOut(true)
-                        } catch (_: Throwable) {
-                        }
-
-                    }
-                } catch (e2: Exception) {
-                    if (e2 is IllegalArgumentException) {
-                        //TODO  should never happen
-                        return
-                    }
-                    throw e2
+                    allowCoreThreadTimeOut(true)
+                } catch (e: Throwable) {
                 }
             }
             PThreadThreadPoolCache.addCache(this)
         }
     }
 
-    constructor(corePoolSize: Int, maximumPoolSize: Int, keepAliveTime: Long, unit: TimeUnit, workQueue: BlockingQueue<Runnable>, threadFactory: ThreadFactory) : super(
-        corePoolSize,
-        maximumPoolSize,
-        keepAliveTime,
-        unit,
-        workQueue,
-        threadFactory
-    ) {
-    }
-
-    constructor(corePoolSize: Int, maximumPoolSize: Int, keepAliveTime: Long, unit: TimeUnit, workQueue: BlockingQueue<Runnable>, handler: RejectedExecutionHandler) : super(
-        corePoolSize,
-        maximumPoolSize,
-        keepAliveTime,
-        unit,
-        workQueue,
-        handler
-    ) {
-    }
-
-    constructor(corePoolSize: Int, maximumPoolSize: Int, keepAliveTime: Long, unit: TimeUnit,
-        workQueue: BlockingQueue<Runnable>, threadFactory: ThreadFactory, handler: RejectedExecutionHandler) : super(
-        corePoolSize,
-        maximumPoolSize,
-        keepAliveTime,
-        unit,
-        workQueue,
-        threadFactory,
-        handler
-    ) {
-    }
-
     //TODO 这个函数应该被 lancet 插桩处理
-    override fun allowCoreThreadTimeOut(value: Boolean) {
+    override fun allowCoreThreadTimeOut(allow: Boolean) {
         try {
-            if (Build.VERSION.SDK_INT > 23) {
-                super.allowCoreThreadTimeOut(value)
-                return
+            var allowCoreTimeOut = true
+            if (SuperThreadPoolManager.enableBlockFetchStack && !allow) {
+                allowCoreTimeOut = false
             }
-
-            try {
-                super.allowCoreThreadTimeOut(value)
-            } catch (e: Exception) {
-                if (e !is java.lang.ClassCastException) {
-                    throw  e
-                }
-
-            }
-
-        } catch (e: Exception) {
-            if (e !is IllegalArgumentException) {
-                throw e
-            }
+            super.allowCoreThreadTimeOut(allowCoreTimeOut)
+        } catch (e: Throwable) {
         }
     }
 
     override fun execute(runnable: Runnable) {
-
-        if (!PthreadUtil.isEnableHook()) {
+        if (!isEnableHook()) {
             super.execute(runnable)
             return
         }
-
         try {
             super.execute(runnable)
         } catch (e: OutOfMemoryError) {
-            val freeExecutor = PThreadThreadPoolCache.findFreeExecutor("PThreadPoolExecutor", PThreadThreadPoolCache.getQueueType(queue))
-                ?: throw OutOfMemoryError(e.localizedMessage)
+            val freeExecutor = PThreadThreadPoolCache.findFreeExecutorWhenOom(
+                "PThreadPoolExecutor", PThreadThreadPoolCache.getQueueType(queue)
+            ) ?: throw OutOfMemoryError(e.localizedMessage)
 
             freeExecutor.execute(runnable)
         }
@@ -113,7 +81,6 @@ open class PThreadPoolExecutor : DefaultThreadPoolProxy {
 
     override fun finalize() {
         super.finalize()
-        //TODO 这是做什么？
         shutdown()
         PThreadThreadPoolCache.removeCache(this)
     }
@@ -132,18 +99,17 @@ open class PThreadPoolExecutor : DefaultThreadPoolProxy {
         return super.shutdownNow()
     }
 
-    override fun  submit(runnable: Runnable): Future<*> {
+    override fun submit(runnable: Runnable): Future<*> {
         if (isEnableHook()) {
             try {
                 return super.submit(runnable)
             } catch (e: OutOfMemoryError) {
                 //todo
-                val findFreeExecutor: PThreadPoolExecutor? = PThreadThreadPoolCache.findFreeExecutor(
-                    "PThreadPoolExecutor",
-                    PThreadThreadPoolCache.getQueueType(queue)
+                val findFreeExecutor: PThreadPoolExecutor? = PThreadThreadPoolCache. findFreeExecutorWhenOom(
+                    "PThreadPoolExecutor", PThreadThreadPoolCache.getQueueType(queue)
                 )
                 val future = findFreeExecutor?.submit(runnable)
-                if (future!=null){
+                if (future != null) {
                     return future
                 }
                 throw OutOfMemoryError(e.localizedMessage)
@@ -155,15 +121,14 @@ open class PThreadPoolExecutor : DefaultThreadPoolProxy {
     override fun <T> submit(callable: Callable<T>): Future<T> {
         if (isEnableHook()) {
             try {
-               return super.submit(callable)
+                return super.submit(callable)
             } catch (e: OutOfMemoryError) {
                 //todo
-                val findFreeExecutor: PThreadPoolExecutor? = PThreadThreadPoolCache.findFreeExecutor(
-                    "PThreadPoolExecutor",
-                    PThreadThreadPoolCache.getQueueType(queue)
+                val findFreeExecutor: PThreadPoolExecutor? = PThreadThreadPoolCache.findFreeExecutorWhenOom(
+                    "PThreadPoolExecutor", PThreadThreadPoolCache.getQueueType(queue)
                 )
                 val future = findFreeExecutor?.submit(callable)
-                if (future!=null){
+                if (future != null) {
                     return future
                 }
                 throw OutOfMemoryError(e.localizedMessage)
@@ -171,9 +136,5 @@ open class PThreadPoolExecutor : DefaultThreadPoolProxy {
         }
         return super.submit(callable)
     }
-
-
-
-
 
 }

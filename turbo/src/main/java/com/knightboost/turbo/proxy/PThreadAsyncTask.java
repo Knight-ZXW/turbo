@@ -10,7 +10,8 @@ import java.util.concurrent.TimeUnit;
 
 public abstract class PThreadAsyncTask<Params,Progress,Result> extends AsyncTask<Params,Progress,Result>{
 
-    private static Executor THREAD_POOL_EXECUTOR = new PThreadPoolExecutor(0,20,3, TimeUnit.MILLISECONDS,
+    private static final Executor THREAD_POOL_EXECUTOR = new PThreadPoolExecutor(0,20,
+            3, TimeUnit.MILLISECONDS,
             new SynchronousQueue<>(),new DefaultThreadFactory("PThreadAsyncTask"));
 
 

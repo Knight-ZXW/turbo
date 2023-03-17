@@ -5,10 +5,7 @@ import com.knightboost.turbo.convergence.ThreadFactoryProxy.Companion.proxy
 import com.knightboost.turbo.PthreadUtil.isEnableHook
 import com.knightboost.turbo.convergence.SuperThreadPoolManager.enableBlockFetchStack
 import com.knightboost.turbo.convergence.SuperThreadPoolManager.defaultScheduledThreadKeepAliveTime
-import com.knightboost.turbo.convergence.ThreadFactoryProxy
 import com.knightboost.turbo.PthreadUtil
-import com.knightboost.turbo.convergence.SuperThreadPoolExecutor
-import com.knightboost.turbo.convergence.SuperThreadPoolManager
 import java.util.concurrent.*
 
 open class PThreadScheduledThreadPoolExecutor : ScheduledThreadPoolExecutor {
@@ -46,6 +43,8 @@ open class PThreadScheduledThreadPoolExecutor : ScheduledThreadPoolExecutor {
         checkHook()
     }
 
+
+
     private fun checkHook() {
         if (isEnableHook()) {
             if (!enableBlockFetchStack) {
@@ -67,19 +66,19 @@ open class PThreadScheduledThreadPoolExecutor : ScheduledThreadPoolExecutor {
 
     private fun <T> retryOOMLogicWithReturn(
         obj: Any,
-        function: () -> ScheduledFuture<out T>?
+        schedule: () -> ScheduledFuture<out T>?
     ): ScheduledFuture<out T>? {
         if (!isEnableHook()) {
-            return function()
+            return schedule()
         }
         try {
-            val future = function()
+            val future = schedule()
             this.runnableMap.remove(obj)
             return future
         } catch (unused: OutOfMemoryError) {
             PThreadThreadPoolCache.workPool.schedule(
                 {
-                    function()
+                    schedule()
                     runnableMap.remove(obj)
                 }, PthreadUtil.delayTime, TimeUnit.MILLISECONDS
             )
